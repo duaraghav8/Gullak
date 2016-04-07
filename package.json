@@ -1,0 +1,12 @@
+{
+  "name": "icici",
+  "version": "0.0.0",
+  "description": "Backend for ICICI Appathon",
+  "main": "server.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "start": "node server.js"
+  },
+  "author": "Raghav Dua",
+  "license": "MIT"
+}

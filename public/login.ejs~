@@ -1,0 +1,37 @@
+
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <!-- The above 3 meta tags *must* come first in the head; any other head content must come *after* these tags -->
+    <meta name="description" content="Limetray Assignment - A Simple E Commerce site beased in Node+Angular+Boostrap">
+    <meta name="author" content="Raghav Dua">
+
+    <title>Gullak</title>
+
+    <!-- Bootstrap core CSS -->
+    <link href="css/bootstrap.min.css" rel="stylesheet">
+    <!-- Custom styles for this template -->
+    <link href="css/signin.css" rel="stylesheet">
+  </head>
+
+  <body>
+
+    <div class="container">
+
+      <form class="form-signin" action = "/login" method = "post">
+        <h2 class="form-signin-heading">Gullak</h2>
+
+        <label for="inputEmail" class="sr-only">Account Number</label>
+        <input type="email" id="inputEmail" class="form-control" placeholder="Account Number" name="account_no" required autofocus>
+
+        <label for="inputPassword" class="sr-only">Your 4-digit pin</label>
+        <input type="password" id="inputPassword" class="form-control" placeholder="Your 4-digit pin" name="pin" required>
+
+        <button class="btn btn-lg btn-primary btn-block" type="submit">Sign in</button>
+
+      </form>
+
+    </div> <!-- /container -->
+
+  </body>
+</html>

@@ -1,0 +1,5 @@
+LOG THE FUCK IN
+curl -X POST -i -H "Content-type: application/json" http://localhost:8085/login -d '{"account_no":"123","pin":"111"}'
+
+LOG THE FUCK OUT
+curl -X GET -i --cookie "connect.sid=<COOKIE HERE>" http://localhost:8085/logout

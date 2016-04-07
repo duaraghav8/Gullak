@@ -1,0 +1,163 @@
+'use strict';
+
+var mongoose = require ('mongoose'),
+		StatusCodes = require ('./StatusCodes'),
+		config = require ('../config/config'),
+		cp = require ('child_process'),
+		Cron = require ('./cron'),
+		request = require ('request'),
+		userModel = mongoose.model (config.userCollection),
+		gullakModel = mongoose.model (config.gullakCollection);
+
+exports.getHomePage = function (req, res) {
+	if (req.user) { return (res.redirect ('/profile')); }
+	res.redirect ('/login');
+};
+
+exports.getLoginPage = function (req, res) { res.render ('login'); };
+
+exports.profile = function (req, res) {	res.render ('index'); };
+
+exports.logout = function (req, res) {
+	req.logout ();
+	res.redirect ('/login');
+};
+
+exports.isLoggedIn = function (req, res, next) {
+	if (req.isAuthenticated ()) {
+		return (next ());
+	}
+	res.redirect ('/login');
+};
+
+exports.notFound = function (req, res) {
+	res.sendStatus (StatusCodes.NOT_FOUND);
+};
+
+exports.getGullakConfiguration = function (req, res) {
+	var myChild = cp.fork ('./app/generateGullakConfigurations');
+	/*
+	console.log (req.user);
+	console.log (req.user.pin, req.user._id, req.user ['account_no']);
+
+	process.exit();
+	*/
+
+//	myChild.send (req.user.account_no);
+
+	myChild.send ('5555666677770814');
+	myChild.once ('message', function (configParams) {
+		configParams.err ? res.sendStatus (StatusCodes.INTERNAL_SERVER_ERROR) : res.json (configParams);
+	});
+};
+
+exports.start = function (req, res) {
+	//Check if User already has a Gullak account. If yes & its INACTIVE -> Update that A/C, else create new one
+	userModel.findOne ({_id: req.user._id}, {pin: 0}, function (err, user) {
+		if (err) { return (res.sendStatus (StatusCodes.INTERNAL_SERVER_ERROR)); }
+		if (user.gullak) {
+			gullakModel.findOne ({_id: user.gullak}, function (err, account) {
+				if (err) { return (res.sendStatus (StatusCodes.INTERNAL_SERVER_ERROR)); }
+				if (!account) { return (res.sendStatus (StatusCodes.NOT_FOUND)); }
+				if (account.active) { return (res.sendStatus (StatusCodes.NOT_ACCEPTABLE)); }
+
+				account.active = true;
+				account.configuration = {
+					save_amount: parseFloat (req.body.save_amount),
+					time_interval: parseInt (req.body.time_interval)
+				};
+				account.save (function (err) {
+					if (err) { return (res.sendStatus (StatusCodes.INTERNAL_SERVER_ERROR)); }
+					//console.log (user.account_no);
+					Cron.scheduleJob (user.gullak, user.account_no, account.configuration);
+					return (res.sendStatus (StatusCodes.OK));
+				});
+			});
+		}
+		else {		//user already has gullak A/C
+			var gullakDoc = new gullakModel ({
+				net_savings: 0,
+				user: req.user._id,
+				active: true,
+				configuration: {
+					save_amount: parseFloat (req.body.save_amount),
+					time_interval: parseInt (req.body.time_interval)
+				}
+			});
+
+			gullakDoc.save (function (err) {
+				if (err) { return (res.sendStatus (StatusCodes.INTERNAL_SERVER_ERROR)); }
+				userModel.update ({_id: req.user._id}, { $set: {gullak: gullakDoc._id} }, {upsert: true}, function (err) {
+					if (err) {
+						gullakModel.delete ({_id: gullakDoc._id}, function (err) {});		//revert the creation of new gullak doc
+						return (res.sendStatus (StatusCodes.INTERNAL_SERVER_ERROR));
+					}
+					//create a new CRON job for fund transfer (node_schedule)
+					Cron.scheduleJob (gullakDoc._id, user.account_no, gullakDoc.configuration);
+					return (res.sendStatus (StatusCodes.CREATED));
+				});
+			});
+		}
+	});
+};
+//The Callback Hell Strikes again :S
+
+exports.stop = function (req, res) {
+	userModel.findOne ({_id: req.user._id}, {account_no:0, pin:0}, function (err, user) {
+		if (err) { return (res.sendStatus (StatusCodes.INTERNAL_SERVER_ERROR)); }
+		if (user.gullak) {
+			gullakModel.update ({_id: user.gullak}, {$set: {active: false}}, function (err) {
+				if (err) { return (res.sendStatus (StatusCodes.INTERNAL_SERVER_ERROR)); }
+				//stop & delete cron job for fund transfer
+				Cron.destroyJob (user.gullak);
+				return (res.sendStatus (StatusCodes.OK));
+			});
+		}
+		else { return (res.sendStatus (StatusCodes.NOT_FOUND)); }
+	});
+};
+
+exports.status = function (req, res) {
+	userModel.findOne ({_id: req.user._id}, {account_no:0, pin:0}, function (err, user) {
+		if (err) { return (res.sendStatus (StatusCodes.INTERNAL_SERVER_ERROR)); }
+		if (user.gullak) {
+			gullakModel.findOne ({_id: user.gullak}, function (err, account) {
+				if (err) { return (res.sendStatus (StatusCodes.INTERNAL_SERVER_ERROR)); }
+				if (account) { return (res.json ({net_savings: account.net_savings, active: account.active, configuration: account.configuration})); }
+				return (res.sendStatus (StatusCodes.NOT_FOUND));
+			});
+		}
+		else { return (res.sendStatus (StatusCodes.NOT_FOUND)); }
+	});
+};
+
+exports.withdraw = function (req, res) {
+	userModel.findOne ({_id: req.user._id}, function (err, user) {
+		if (err) { return (res.sendStatus (StatusCodes.INTERNAL_SERVER_ERROR)); }
+		if (!user || !user.gullak) { return (res.sendStatus (StatusCodes.NOT_FOUND)); }
+		gullakModel.findOne ({_id: user.gullak}, function (err, account) {
+			if (err) { return (res.sendStatus (StatusCodes.INTERNAL_SERVER_ERROR)); }
+			if (!account) { return (res.sendStatus (StatusCodes.NOT_FOUND)); }
+			var amountToTransfer = account.net_savings;
+			account.net_savings = 0;
+			account.save (function (err) {
+				if (err) { return (res.sendStatus (StatusCodes.INTERNAL_SERVER_ERROR)); }
+				var ftu = config.fundTransferURL
+	        .replace ('<CLIENT_ID>', config.clientId)
+	        .replace ('<TOKEN>', config.token)
+	        .replace ('<SRC_ACCOUNT>', config.gullakAccountNo)
+	        .replace ('<DEST_ACCOUNT>', user.account_no)
+	        .replace ('<AMOUNT>', amountToTransfer);
+
+				request (ftu, function (err, response, body) {
+					body = JSON.parse (body);
+					if (body [0].code == 200) { return (res.sendStatus (StatusCodes.OK)); }
+					else {
+						//revert account.net_savings to moneyToTransfer
+						return (res.sendStatus (StatusCodes.INTERNAL_SERVER_ERROR));
+					}
+				});
+			});
+		});
+	});
+};

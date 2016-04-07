@@ -1,0 +1,74 @@
+<html ng-app="ionicApp">
+
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="initial-scale=1, maximum-scale=1, user-scalable=no, width=device-width">
+
+  <title>Gullak</title>
+
+  <link href="//code.ionicframework.com/nightly/css/ionic.css" rel="stylesheet">
+<link href="//raw.githubusercontent.com/jtblin/angular-chart.js/master/dist/angular-chart.css" rel="stylesheet">
+
+<script src="//cdnjs.cloudflare.com/ajax/libs/Chart.js/1.0.1/Chart.min.js"></script>
+  <script src="//code.ionicframework.com/nightly/js/ionic.bundle.js"></script>
+
+  <script src = "js/app.js"></script>
+
+</head>
+
+<body>
+
+  <ion-header-bar class="bar-dark">
+    <h1 class="title">Status</h1>
+  </ion-header-bar>
+
+  <ion-nav-view class = "has-header"></ion-nav-view>
+
+<!--  <div class = "bar bar-footer bar-royal">
+    <div class = "title">Sign out</div>
+	</div>-->
+
+  <script id="status.html" type="text/ng-template">
+    <ion-content padding = "true">
+      <canvas id="bar" class="chart chart-line" data="graph.data" labels="graph.labels" series='graph.series' height="100"></canvas>
+      <p>{{status}}</p>
+    </ion-content>
+  </script>
+
+  <script id = "createAccount.html" type = "text/ng-template">
+      <ion-content padding = "true">
+      <div class="card">
+        <div class="item item-divider item-positive">
+          Current Balance
+        </div>
+        <div class="item item-text-wrap">
+          Rs. {{recommendedConfig.currentBalance}}
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="item item-divider item-positive">
+          Estimated Weekly Expense
+        </div>
+        <div class="item item-text-wrap">
+          Rs. {{recommendedConfig.estWeeklyExpense}}
+        </div>
+      </div>
+        Recommended amount to save: {{recommendedConfig.suggestedConfig.saveAmt}} <br />
+        Time interval: {{recommendedConfig.suggestedConfig.timeInterval}} days <br />
+
+        <h4><center>
+        Start Saving <br />
+        <label class="toggle toggle-assertive">
+          <input type="checkbox">
+            <div class="track">
+              <div class="handle"></div>
+            </div>
+        </label>
+        </center></h4>
+      </ion-content>
+  </script>
+
+</body>
+
+</html>
