@@ -5,7 +5,7 @@ var config = require ('../config/config'),
     scheduleJob = function (docId, accountNo, config) {
       cronMapping [docId] = setInterval (
         function () { transferToGullak (docId, accountNo, config.save_amount) },
-        /*1000 * 60 * 60 * 24 * config.time_interval*/ 2000
+        1000 * 60 * 60 * 24 * config.time_interval
       );
     },
     destroyJob = function (docId) {
